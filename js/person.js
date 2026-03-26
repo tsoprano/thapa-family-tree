@@ -13,8 +13,14 @@ if (!id) {
 
 // Load person
 const { data: person, error } = await getPerson(id);
+
 if (error) {
-  document.body.innerHTML = `<p>Error loading person</p>`;
+  console.error("Supabase error:", error);
+  document.body.innerHTML = `
+    <h2>Error loading person</h2>
+    <pre>${JSON.stringify(error, null, 2)}</pre>
+    index.htmlGo back</a>
+  `;
   throw error;
 }
 
