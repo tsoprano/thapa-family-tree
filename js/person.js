@@ -24,6 +24,7 @@ if (error) {
   throw error;
 }
 
+const person = await getPerson(id);
 document.getElementById("name").textContent = person.first_name;
 
 // Load parents
