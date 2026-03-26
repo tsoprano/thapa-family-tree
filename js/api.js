@@ -1,7 +1,17 @@
 import { supabase } from "./supabase.js";
 
 export async function getPerson(id) {
-  return supabase.from("people").select("*").eq("id", id).single();
+  const res = await supabase
+    .from("people")
+    .select("*")
+    .eq("id", id);
+
+  if (res.error) return res;
+
+  return {
+    data: res.data[0],
+    error: null
+  };
 }
 
 export async function getChildren(id) {
