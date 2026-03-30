@@ -1,11 +1,40 @@
-<h1 id="name"></h1>
 
-<h2>Parents</h2>
-<ul id="parents"></ul>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Family Tree</title>
 
-<h2>Children</h2>
-<ul id="children"></ul>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
 
-<a href="add.html">Add Person</a>
+<body>
 
-<script type="module" src="js/person.js"></script>
+    <nav style="margin-bottom: 1rem;">
+    <a href="index.html">🏠 Home</a>
+    </nav>
+
+    <a href="add.html">Add Person</a>
+
+    <h1 id="name"></h1>
+    <div id="actions" style="margin: 0.5rem 0 1rem;">
+    <a id="addChild" href="#">➕ Add Child</a> |
+    <a id="addParent" href="#">➕ Add Parent</a> |
+    <a id="addSpouse" href="#">💍 Add Spouse</a>
+    </div>
+
+    <h2>Spouse(s)</h2>
+    <ul id="spouses"></ul>
+
+    <h2>Parents</h2>
+    <ul id="parents"></ul>
+
+    <h2>Children</h2>
+    <ul id="children"></ul>
+
+    <h2>Siblings</h2>
+    <ul id="siblings"></ul>
+
+    <script type="module" src="js/person.js"></script>
+
+</body>
