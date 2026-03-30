@@ -1,19 +1,143 @@
-<form id="addPerson">
-  <input name="first_name" placeholder="First name" required />
-  <input name="birth_year" placeholder="Birth year" />
-  <button>Add</button>
-</form>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Add Person</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav style="margin-bottom: 1rem;">
+  <a href="index.html">🏠 Home</a>
+  </nav>
+  <h1>Add Person</h1>
+  <p id="context"></p>
 
-<script type="module">
-import { supabase } from "./js/supabase.js";
+  <form id="addPerson">
+    <label>
+      First name
+      <input name="first_name" required />
+    </label>
+    <label>
+      Birth year (optional)
+      <input name="birth_year" type="number" />
+    </label>
+    <button type="submit">Save</button>
+  </form>
 
-document.querySelector("form").onsubmit = async e => {
-  e.preventDefault();
-  const f = e.target;
-  await supabase.from("people").insert({
-    first_name: f.first_name.value,
-    birth_year: f.birth_year.value || null
-  });
-  alert("Person added");
-};
-</script>
+  
+  <p>
+    <a id="backLink" href="index.html">⬅ Back</a>
+  </p>
+
+
+  <script type="module">
+    import { supabase } from "./js/supabase.js";
+
+    const q = new URLSearchParams(location.search);
+    const parentId = q.get("parentId"); // adding a new CHILD to this parent
+    const childId  = q.get("childId");  // adding a new PARENT to this child
+    const spouseOf = q.get("spouseOf"); // adding a new SPOUSE to this person
+
+    // Show context and set back link
+    let backId = parentId || childId || spouseOf;
+    if (backId) {
+      document.getElementById("backLink").href = `person.html?id=${backId}`;
+    }
+
+    const ctx = [];
+    if (parentId) ctx.push("This person will be added as a CHILD of the referenced parent.");
+    if (childId)  ctx.push("This person will be added as a PARENT of the referenced child.");
+    if (spouseOf) ctx.push("This person will be added as a SPOUSE of the referenced person.");
+    document.getElementById("context").textContent = ctx.join(" ");
+
+    document.getElementById("addPerson").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const first_name = fd.get("first_name").trim();
+      const birth_year = fd.get("birth_year") ? Number(fd.get("birth_year")) : null;
+
+      // Check for possible duplicate names (warning only)
+      const existing = await supabase
+        .from("people")
+        .select("id, first_name, birth_year")
+        .ilike("first_name", first_name);
+
+      if (existing.error) {
+        alert("Error checking existing people: " + existing.error.message);
+        return;
+      }
+
+      if (existing.data && existing.data.length > 0) {
+        const list = existing.data
+          .map(p => `• ${p.first_name}${p.birth_year ? " (" + p.birth_year + ")" : ""}`)
+          .join("\n");
+
+        const proceed = confirm(
+          `People with this name already exist:\n\n${list}\n\n` +
+          "This is normal in families.\n\n" +
+          "Do you want to create a NEW person anyway?"
+        );
+
+        if (!proceed) {
+          return; // user cancelled
+        }
+      }
+
+      // 1) Create person
+      const ins = await supabase
+        .from("people")
+        .insert({ first_name, birth_year })
+        .select("id, first_name");
+
+      if (ins.error) {
+        alert("Insert failed: " + ins.error.message);
+        return;
+      }
+      const newPerson = ins.data[0];
+
+      // 2) Create relationship(s) if context was provided
+      let relError = null;
+
+      if (parentId) {
+        // newPerson is the CHILD, parentId is the PARENT
+        const rel = await supabase
+          .from("relationships")
+          .insert({ person_id: newPerson.id, related_person_id: parentId, relationship_type: "parent" });
+        relError = rel.error;
+      }
+
+      if (childId) {
+        // newPerson is the PARENT, childId is the CHILD
+        const rel = await supabase
+          .from("relationships")
+          .insert({ person_id: childId, related_person_id: newPerson.id, relationship_type: "parent" });
+        relError = relError || rel.error;
+      }
+
+      if (spouseOf) {
+        // Add spouse both directions for simpler queries
+        const rel1 = await supabase
+          .from("relationships")
+          .insert({ person_id: newPerson.id, related_person_id: spouseOf, relationship_type: "spouse" });
+        const rel2 = await supabase
+          .from("relationships")
+          .insert({ person_id: spouseOf, related_person_id: newPerson.id, relationship_type: "spouse" });
+        relError = rel1.error || rel2.error || relError;
+      }
+
+      if (relError) {
+        alert("Saved person, but relationship linking failed: " + relError.message);
+      } else {
+        alert("Saved!");
+      }
+
+      // 3) Go back to the relevant person page
+      if (backId) {
+        location.href = `person.html?id=${backId}`;
+      } else {
+        location.href = `person.html?id=${newPerson.id}`;
+      }
+    });
+  </script>
+</body>
+</html>
