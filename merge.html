@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Merge People</title>
+  <link rel="stylesheet" href="/css/style.css" />
+
+  <style>
+    .panel {
+      border: 1px solid #ccc;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    .person-card {
+      background: #f9f9f9;
+      border-radius: 5px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+    }
+    .selected-primary {
+      border: 2px solid #2e7d32;
+      background: #e6f4ea;
+    }
+    .selected-secondary {
+      border: 2px solid #8e0000;
+      background: #fdecea;
+    }
+    .warn {
+      color: #8e0000;
+      font-weight: bold;
+    }
+    button {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+
+<body>
+
+<nav style="margin-bottom:1rem;">
+  <a href="index.html">🏠 Home</a> |
+  <a href="duplicates.html">← Duplicate Detector</a>
+</nav>
+
+<h1>Merge Wizard</h1>
+
+<p>
+  Select exactly <strong>one Primary</strong> record (to keep)
+  and <strong>one Secondary</strong> record (to merge).
+</p>
+
+<div class="panel">
+  <h3>Candidate Records</h3>
+  <div id="candidates">Loading…</div>
+</div>
+
+<div class="panel">
+  <h3>Merge Preview</h3>
+  <div id="preview">
+    <em>Select a Primary and Secondary to preview.</em>
+  </div>
+</div>
+
+<button id="mergeBtn" disabled>✅ Confirm Merge</button>
+
+<script type="module" src="js/merge.js"></script>
+</body>
+</html>
