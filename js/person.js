@@ -1,48 +1,109 @@
-import { getPerson, getParents, getChildren } from "./api.js";
+import {
+  getPerson,
+  getParents,
+  getChildren,
+  getSiblings,
+  getSpouses
+} from "./api.js";
 
+/* ---------- Helpers ---------- */
+function escapeHtml(s = "") {
+  return s.replace(/[&<>"']/g, (m) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[m]));
+}
+
+function linkToPerson(p) {
+  const name = escapeHtml(p.first_name || "Unknown");
+  const year = p.birth_year ? ` (${p.birth_year})` : "";
+  return `<a href="person.html?id=${p.id}">${name}${year}</a>`;
+}
+
+function renderList(listId, people = []) {
+  const ul = document.getElementById(listId);
+  ul.innerHTML = "";
+  if (!people.length) {
+    ul.innerHTML = `<li><em>No Data</em></li>`;
+    return;
+  }
+  for (const p of people) {
+    const li = document.createElement("li");
+    li.innerHTML = linkToPerson(p);
+    ul.appendChild(li);
+  }
+}
+
+function sortByBirthYearThenName(people = []) {
+  return [...people].sort((a, b) => {
+    // If both have birth_year
+    if (a.birth_year != null && b.birth_year != null) {
+      return a.birth_year - b.birth_year;
+    }
+    // If only a has birth_year → a first
+    if (a.birth_year != null) return -1;
+    // If only b has birth_year → b first
+    if (b.birth_year != null) return 1;
+    // Neither has birth_year → fallback to name
+    return (a.first_name || "").localeCompare(b.first_name || "");
+  });
+}
+
+/* ---------- Read URL ---------- */
 const params = new URLSearchParams(window.location.search);
 const id = params.get("id");
 
 if (!id) {
   document.body.innerHTML = `
     <h2>No person selected</h2>
-    <a href="index.html">Go back</a>
+    <p>index.htmlGo Home</a></p>
   `;
-  throw new Error("No person ID in URL");
+  throw new Error("No person ID");
 }
 
-// Load person
-const { data: person, error } = await getPerson(id);
-
-if (error) {
-  console.error("Supabase error:", error);
+/* ---------- Load person ---------- */
+const { data: person, error: personErr } = await getPerson(id);
+if (personErr || !person) {
   document.body.innerHTML = `
     <h2>Error loading person</h2>
-    <pre>${JSON.stringify(error, null, 2)}</pre>
-    index.htmlGo back</a>
+    <p>${personErr?.message || "Person not found"}</p>
+    <p>index.htmlGo Home</a></p>
   `;
-  throw error;
+  throw new Error(personErr?.message || "Person not found");
 }
 
 document.getElementById("name").textContent = person.first_name;
 
-// Load parents
-const { data: parents } = await getParents(id);
-parents.forEach(p => {
-  const li = document.createElement("li");
-  li.innerHTML = `<a href="person.html?id=${p.people.id}">
-    ${p.people.first_name}
-  </a>`;
-  document.getElementById("parents").appendChild(li);
-});
+/* ---------- Wire add actions ---------- */
+/* IMPORTANT: match add.html parameter names */
+document.getElementById("addChild").href  = `add.html?parentId=${id}`;
+document.getElementById("addParent").href = `add.html?childId=${id}`;
+document.getElementById("addSpouse").href = `add.html?spouseOf=${id}`;
 
-// Load children
+/* ---------- Load & render sections ---------- */
+
+// Parents
+const { data: parents } = await getParents(id);
+renderList("parents", parents || []);
+
+// Children
 const { data: children } = await getChildren(id);
-children.forEach(c => {
-  const li = document.createElement("li");
-  li.innerHTML = `<a href="person.html?id=${c.people.id}">
-    ${c.people.first_name}
-  </a>`;
-  document.getElementById("children").appendChild(li);
-});
-``
+renderList("children", sortByBirthYearThenName(children || []));
+
+// Siblings
+const { data: siblings } = await getSiblings(id);
+renderList("siblings", sortByBirthYearThenName(siblings || []));
+// const { data: siblings } = await getSiblings(id);
+// renderList(
+//   "siblings",
+//   (siblings || []).sort((a, b) =>
+//     (a.first_name || "").localeCompare(b.first_name || "")
+//   )
+// );
+
+// Spouses
+const { data: spouses } = await getSpouses(id);
+renderList("spouses", sortByBirthYearThenName(spouses || []));
