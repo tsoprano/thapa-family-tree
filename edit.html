@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Edit Person</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .box {
+      max-width: 500px;
+      border: 1px solid #ccc;
+      padding: 1.5rem;
+      border-radius: 6px;
+    }
+    label {
+      display: block;
+      margin-bottom: 1rem;
+    }
+    button {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+
+<body>
+
+<nav id="authNav" style="margin-bottom:1rem;"></nav>
+<script type="module">
+  import { renderAuthNav } from "/js/auth-nav.js";
+  renderAuthNav();
+</script>
+
+<h1>Edit Person</h1>
+
+<div class="box">
+  <form id="editForm">
+    <label>
+      Full name
+      <input id="firstName" required />
+    </label>
+
+    <label>
+      Birth year
+      <input id="birthYear" type="number" />
+    </label>
+
+    <button type="submit">Save Changes</button>
+  </form>
+</div>
+
+<p><a id="backLink">⬅ Back</a></p>
+
+<script type="module">
+import { supabase } from "./js/supabase.js";
+
+/* =========================
+   Read context
+========================= */
+const params = new URLSearchParams(location.search);
+const id = params.get("id");
+
+if (!id) {
+  document.body.innerHTML = "<h2>Missing person ID</h2>";
+  throw new Error("No ID");
+}
+
+document.getElementById("backLink").href = `person.html?id=${id}`;
+
+/* =========================
+   Load person
+========================= */
+const { data: person, error } = await supabase
+  .from("people")
+  .select("first_name, birth_year")
+  .eq("id", id)
+  .single();
+
+if (error) {
+  alert(error.message);
+  throw error;
+}
+
+document.getElementById("firstName").value = person.first_name || "";
+document.getElementById("birthYear").value = person.birth_year || "";
+
+/* =========================
+   Save changes
+========================= */
+document.getElementById("editForm").onsubmit = async (e) => {
+  e.preventDefault();
+
+  const first_name = document.getElementById("firstName").value.trim();
+  const birth_year =
+    document.getElementById("birthYear").value || null;
+
+  if (!first_name) {
+    alert("Name is required");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("people")
+    .update({ first_name, birth_year })
+    .eq("id", id);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  window.location.href = `person.html?id=${id}`;
+};
+</script>
+
+</body>
+</html>
