@@ -79,9 +79,10 @@ document.getElementById("name").textContent = person.first_name;
 
 /* ---------- Wire add actions ---------- */
 /* IMPORTANT: match add.html parameter names */
-document.getElementById("addChild").href  = `add.html?parentId=${id}`;
-document.getElementById("addParent").href = `add.html?childId=${id}`;
-document.getElementById("addSpouse").href = `add.html?spouseOf=${id}`;
+document.getElementById("editPerson").href = `edit.html?id=${id}`;
+document.getElementById("addChild").href  = `link.html?type=child&of=${id}`;
+document.getElementById("addParent").href = `link.html?type=parent&of=${id}`;
+document.getElementById("addSpouse").href = `link.html?type=spouse&of=${id}`;
 
 /* ---------- Load & render sections ---------- */
 
@@ -96,13 +97,6 @@ renderList("children", sortByBirthYearThenName(children || []));
 // Siblings
 const { data: siblings } = await getSiblings(id);
 renderList("siblings", sortByBirthYearThenName(siblings || []));
-// const { data: siblings } = await getSiblings(id);
-// renderList(
-//   "siblings",
-//   (siblings || []).sort((a, b) =>
-//     (a.first_name || "").localeCompare(b.first_name || "")
-//   )
-// );
 
 // Spouses
 const { data: spouses } = await getSpouses(id);
