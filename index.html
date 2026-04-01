@@ -1,77 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <title>Merge People</title>
-  <link rel="stylesheet" href="css/style.css" />
-
-  <style>
-    .panel {
-      border: 1px solid #ccc;
-      padding: 1rem;
-      border-radius: 6px;
-      margin-bottom: 1rem;
-    }
-    .person-card {
-      background: #f9f9f9;
-      border-radius: 5px;
-      padding: 0.75rem;
-      margin-bottom: 0.5rem;
-      cursor: pointer;
-    }
-    .selected-primary {
-      border: 2px solid #2e7d32;
-      background: #e6f4ea;
-    }
-    .selected-secondary {
-      border: 2px solid #8e0000;
-      background: #fdecea;
-    }
-    .warn {
-      color: #8e0000;
-      font-weight: bold;
-    }
-    button {
-      margin-top: 1rem;
-    }
-  </style>
+  <link rel="stylesheet" href="css/style.css">
+  <title>Ranasur Family Tree</title>
 </head>
-
 <body>
+  <nav id="authNav" style="margin-bottom:1rem;"></nav>
 
-
-<nav style="margin-bottom:1rem;">
-  <a href="index.html">🏠 Home</a> |
-  <a href="duplicates.html">← Duplicate Detector</a>
-</nav>
-<nav id="authNav" style="margin-bottom:1rem;"></nav>
-
-<script type="module">
-  import { renderAuthNav } from "/js/auth-nav.js";
-  renderAuthNav();
-</script>
-
-<h1>Merge Wizard</h1>
-
-<p>
-  Select exactly <strong>one Primary</strong> record (to keep)
-  and <strong>one Secondary</strong> record (to merge).
-</p>
-
-<div class="panel">
-  <h3>Candidate Records</h3>
-  <div id="candidates">Loading…</div>
-</div>
-
-<div class="panel">
-  <h3>Merge Preview</h3>
-  <div id="preview">
-    <em>Select a Primary and Secondary to preview.</em>
+<div class="page">
+  <div class="card">
+    <!-- page-specific content here -->
   </div>
 </div>
 
-<button id="mergeBtn" disabled>✅ Confirm Merge</button>
+  <p>Loading family tree…</p>
 
-<script type="module" src="js/merge.js"></script>
+<script type="module">
+  import { renderAuthNav } from "/js/auth-nav.js";
+  import { ROOT_PERSON_ID } from "./js/config.js";
+
+  renderAuthNav();
+
+  // Redirect after a tick so auth state is established
+  setTimeout(() => {
+    window.location.replace(`person.html?id=${ROOT_PERSON_ID}`);
+  }, 0);
+</script>
+
 </body>
 </html>
