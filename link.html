@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Link Person</title>
+  <link rel="stylesheet" href="/css/style.css" />
+
+  <style>
+    .box {
+      border: 1px solid #ccc;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    ul li {
+      cursor: pointer;
+      padding: 0.25rem;
+    }
+    ul li:hover {
+      background: #eee;
+    }
+  </style>
+</head>
+
+<body>
+
+<nav id="authNav" style="margin-bottom:1rem;"></nav>
+<script type="module">
+  import { renderAuthNav } from "/js/auth-nav.js";
+  renderAuthNav();
+</script>
+
+<div class="page">
+  <div class="card">
+
+<nav style="margin-bottom: 1rem;">
+    <a href="index.html">🏠 Home</a>
+  </nav>
+
+<h1 id="title">Link Person</h1>
+<p id="subtitle"></p>
+
+<div class="box">
+  <h3 id="existingTitle">Existing</h3>
+  <ul id="existingList"></ul>
+  <p class="hint">Remove only breaks the relationship. The person is not deleted.</p>
+</div>
+
+
+<div class="box">
+  <h3>Select Existing Person (recommended)</h3>
+
+  <input
+    type="search"
+    id="search"
+    placeholder="Search by name…"
+    style="width:100%; padding:0.5rem;"
+  />
+  <ul id="results"></ul>
+</div>
+
+<div class="box">
+  <h3>Or Create New Person</h3>
+
+  <label>
+    Full name
+    <input id="newName" />
+  </label>
+
+  <label>
+    Birth year (optional)
+    <input id="newBirth" type="number" />
+  </label>
+
+  <button id="createAndLink">Create & Link</button>
+</div>
+
+<p><a id="backLink">⬅ Back</a></p>
+
+</div></div>
+
+
+<script type="module">
+import { supabase } from "./js/supabase.js";
+
+/* ============================
+   URL CONTEXT
+============================ */
+const params = new URLSearchParams(location.search);
+const type = params.get("type");   // child | parent | spouse
+const ofId = params.get("of");     // existing person
+
+if (!type || !ofId) {
+  document.body.innerHTML = "<h2>Invalid link request</h2>";
+  throw new Error("Missing context");
+}
+
+const titleMap = {
+  child: "Link Child",
+  parent: "Link Parent",
+  spouse: "Link Spouse"
+};
+
+document.getElementById("title").textContent = titleMap[type];
+document.getElementById("subtitle").textContent =
+  `This will add a ${type} relationship.`;
+document.getElementById("backLink").href = `person.html?id=${ofId}`;
+
+/* ============================
+   REMOVE RELATIONSHIPS
+============================ */
+
+async function removeChild(childId) {
+  if (!confirm("Remove this child relationship?")) return;
+
+  await supabase
+    .from("relationships")
+    .delete()
+    .eq("person_id", childId)
+    .eq("related_person_id", ofId)
+    .eq("relationship_type", "parent");
+
+  await loadExistingRelationships();
+}
+
+async function removeParent(parentId) {
+  if (!confirm("Remove this parent relationship?")) return;
+
+  await supabase
+    .from("relationships")
+    .delete()
+    .eq("person_id", ofId)
+    .eq("related_person_id", parentId)
+    .eq("relationship_type", "parent");
+
+  await loadExistingRelationships();
+}
+
+async function removeSpouse(spouseId) {
+  if (!confirm("Remove this spouse relationship?")) return;
+
+  await supabase
+    .from("relationships")
+    .delete()
+    .eq("relationship_type", "spouse")
+    .or(
+      `and(person_id.eq.${ofId},related_person_id.eq.${spouseId}),
+       and(person_id.eq.${spouseId},related_person_id.eq.${ofId})`
+    );
+
+  await loadExistingRelationships();
+}
+
+
+/* ============================
+   LOAD EXISTING RELATIONSHIPS
+============================ */
+
+async function loadExistingRelationships() {
+  const list = document.getElementById("existingList");
+  const title = document.getElementById("existingTitle");
+
+  list.innerHTML = "";
+
+  // ----- CHILD -----
+  if (type === "child") {
+    title.textContent = "Existing Children";
+
+    const { data } = await supabase
+      .from("relationships")
+      .select(`
+        person_id,
+        people:people!relationships_person_id_fkey (
+          id, first_name, birth_year
+        )
+      `)
+      .eq("related_person_id", ofId)
+      .eq("relationship_type", "parent");
+
+    if (!data || data.length === 0) {
+      list.innerHTML = "<li><em>No children</em></li>";
+      return;
+    }
+
+    data.forEach(r => {
+      const child = r.people;
+      const li = document.createElement("li");
+      li.innerHTML = `
+        ${child.first_name}${child.birth_year ? " (" + child.birth_year + ")" : ""}
+        <button style="margin-left:1rem;" class="danger">Remove</button>
+      `;
+      li.querySelector("button").onclick = () =>
+        removeChild(child.id);
+      list.appendChild(li);
+    });
+  }
+
+  // ----- PARENT -----
+  if (type === "parent") {
+    title.textContent = "Existing Parents";
+
+    const { data } = await supabase
+      .from("relationships")
+      .select(`
+        related_person_id,
+        people:people!relationships_related_person_id_fkey (
+          id, first_name, birth_year
+        )
+      `)
+      .eq("person_id", ofId)
+      .eq("relationship_type", "parent");
+
+    if (!data || data.length === 0) {
+      list.innerHTML = "<li><em>No parents</em></li>";
+      return;
+    }
+
+    data.forEach(r => {
+      const parent = r.people;
+      const li = document.createElement("li");
+      li.innerHTML = `
+        ${parent.first_name}${parent.birth_year ? " (" + parent.birth_year + ")" : ""}
+        <button style="margin-left:1rem;">Remove</button>
+      `;
+      li.querySelector("button").onclick = () =>
+        removeParent(parent.id);
+      list.appendChild(li);
+    });
+  }
+
+  // ----- SPOUSE -----
+  if (type === "spouse") {
+    title.textContent = "Existing Spouse(s)";
+
+    const { data } = await supabase
+      .from("relationships")
+      .select(`
+        related_person_id,
+        people:people!relationships_related_person_id_fkey (
+          id, first_name, birth_year
+        )
+      `)
+      .eq("person_id", ofId)
+      .eq("relationship_type", "spouse");
+
+    if (!data || data.length === 0) {
+      list.innerHTML = "<li><em>No spouses</em></li>";
+      return;
+    }
+
+    data.forEach(r => {
+      const spouse = r.people;
+      const li = document.createElement("li");
+      li.innerHTML = `
+        ${spouse.first_name}${spouse.birth_year ? " (" + spouse.birth_year + ")" : ""}
+        <button style="margin-left:1rem;">Remove</button>
+      `;
+      li.querySelector("button").onclick = () =>
+        removeSpouse(spouse.id);
+      list.appendChild(li);
+    });
+  }
+}
+
+
+/* ============================
+   RELATIONSHIP EXISTENCE CHECK
+============================ */
+async function relationshipExists(personId, relatedPersonId, relationshipType) {
+  const { data, error } = await supabase
+    .from("relationships")
+    .select("id")
+    .eq("person_id", personId)
+    .eq("related_person_id", relatedPersonId)
+    .eq("relationship_type", relationshipType)
+    .limit(1);
+
+  if (error) {
+    console.error(error);
+    return false;
+  }
+  return data.length > 0;
+}
+
+/* ============================
+   SEARCH EXISTING
+============================ */
+const searchInput = document.getElementById("search");
+const results = document.getElementById("results");
+
+searchInput.addEventListener("input", async () => {
+  results.innerHTML = "";
+  const q = searchInput.value.trim();
+  if (q.length < 2) return;
+
+  const { data } = await supabase
+    .from("people")
+    .select("id, first_name, birth_year")
+    .ilike("first_name", `%${q}%`)
+    .order("first_name")
+    .limit(8);
+
+  data?.forEach(p => {
+    const li = document.createElement("li");
+    li.textContent = `${p.first_name}${p.birth_year ? " (" + p.birth_year + ")" : ""}`;
+    li.onclick = () => linkExisting(p.id);
+    results.appendChild(li);
+  });
+});
+
+/* ============================
+   LINK EXISTING
+============================ */
+async function linkExisting(targetId) {
+  await createRelationship(targetId);
+  location.href = `person.html?id=${ofId}`;
+}
+
+/* ============================
+   CREATE + LINK
+============================ */
+document.getElementById("createAndLink").onclick = async () => {
+  const name = document.getElementById("newName").value.trim();
+  if (!name) return alert("Name required");
+
+  const birth = document.getElementById("newBirth").value || null;
+
+  const { data } = await supabase
+    .from("people")
+    .insert({ first_name: name, birth_year: birth })
+    .select("id")
+    .single();
+
+  await createRelationship(data.id);
+  location.href = `person.html?id=${ofId}`;
+};
+
+/* ============================
+   RELATIONSHIP CREATION (SAFE)
+============================ */
+async function createRelationship(targetId) {
+
+  /* ---- CHILD ---- */
+  if (type === "child") {
+    // child → parent
+    const exists = await relationshipExists(
+      targetId,
+      ofId,
+      "parent"
+    );
+    if (!exists) {
+      await supabase.from("relationships").insert({
+        person_id: targetId,
+        related_person_id: ofId,
+        relationship_type: "parent"
+      });
+    }
+    return;
+  }
+
+  /* ---- PARENT ---- */
+  if (type === "parent") {
+    // child (ofId) → parent (targetId)
+    const exists = await relationshipExists(
+      ofId,
+      targetId,
+      "parent"
+    );
+    if (!exists) {
+      await supabase.from("relationships").insert({
+        person_id: ofId,
+        related_person_id: targetId,
+        relationship_type: "parent"
+      });
+    }
+    return;
+  }
+
+  /* ---- SPOUSE ---- */
+  if (type === "spouse") {
+    const existsAB = await relationshipExists(ofId, targetId, "spouse");
+    const existsBA = await relationshipExists(targetId, ofId, "spouse");
+
+    const inserts = [];
+    if (!existsAB) {
+      inserts.push({
+        person_id: ofId,
+        related_person_id: targetId,
+        relationship_type: "spouse"
+      });
+    }
+    if (!existsBA) {
+      inserts.push({
+        person_id: targetId,
+        related_person_id: ofId,
+        relationship_type: "spouse"
+      });
+    }
+
+    if (inserts.length > 0) {
+      await supabase.from("relationships").insert(inserts);
+    }
+  }
+}
+
+await loadExistingRelationships();
+
+</script>
+
+</body>
+</html>
