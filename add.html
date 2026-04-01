@@ -1,143 +1,315 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Add Person</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <nav style="margin-bottom: 1rem;">
-  <a href="index.html">🏠 Home</a>
-  </nav>
-  <h1>Add Person</h1>
-  <p id="context"></p>
-
-  <form id="addPerson">
-    <label>
-      First name
-      <input name="first_name" required />
-    </label>
-    <label>
-      Birth year (optional)
-      <input name="birth_year" type="number" />
-    </label>
-    <button type="submit">Save</button>
-  </form>
-
-  
-  <p>
-    <a id="backLink" href="index.html">⬅ Back</a>
-  </p>
-
-
-  <script type="module">
-    import { supabase } from "./js/supabase.js";
-
-    const q = new URLSearchParams(location.search);
-    const parentId = q.get("parentId"); // adding a new CHILD to this parent
-    const childId  = q.get("childId");  // adding a new PARENT to this child
-    const spouseOf = q.get("spouseOf"); // adding a new SPOUSE to this person
-
-    // Show context and set back link
-    let backId = parentId || childId || spouseOf;
-    if (backId) {
-      document.getElementById("backLink").href = `person.html?id=${backId}`;
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .section { margin-bottom: 1.5rem; }
+    .box {
+      border: 1px solid #ccc;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-top: 0.5rem;
     }
+    .rel-row { margin-bottom: 1rem; }
+    ul { list-style: none; padding-left: 0; }
+    ul li { cursor: pointer; padding: 0.25rem 0; }
+    ul li:hover { background: #eee; }
+    button.small { margin-left: 1rem; }
+  </style>
+</head>
 
-    const ctx = [];
-    if (parentId) ctx.push("This person will be added as a CHILD of the referenced parent.");
-    if (childId)  ctx.push("This person will be added as a PARENT of the referenced child.");
-    if (spouseOf) ctx.push("This person will be added as a SPOUSE of the referenced person.");
-    document.getElementById("context").textContent = ctx.join(" ");
+<body>
 
-    document.getElementById("addPerson").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const first_name = fd.get("first_name").trim();
-      const birth_year = fd.get("birth_year") ? Number(fd.get("birth_year")) : null;
+<nav id="authNav" style="margin-bottom:1rem;"></nav>
+<script type="module">
+  import { renderAuthNav } from "/js/auth-nav.js";
+  renderAuthNav();
+</script>
 
-      // Check for possible duplicate names (warning only)
-      const existing = await supabase
-        .from("people")
-        .select("id, first_name, birth_year")
-        .ilike("first_name", first_name);
+<div class="page">
+  <div class="card">
 
-      if (existing.error) {
-        alert("Error checking existing people: " + existing.error.message);
-        return;
-      }
+<h1>Add Person</h1>
+<p>Create a new person. Optionally add parents, spouse(s), and/or child(ren).</p>
 
-      if (existing.data && existing.data.length > 0) {
-        const list = existing.data
-          .map(p => `• ${p.first_name}${p.birth_year ? " (" + p.birth_year + ")" : ""}`)
-          .join("\n");
+<form id="addPersonForm">
 
-        const proceed = confirm(
-          `People with this name already exist:\n\n${list}\n\n` +
-          "This is normal in families.\n\n" +
-          "Do you want to create a NEW person anyway?"
-        );
+  <!-- ========================= -->
+  <!-- MAIN PERSON -->
+  <!-- ========================= -->
+  <div class="section">
+    <h3>New Person</h3>
+    <label>Full name <input name="first_name" required /></label>
+    <label>Birth year <input name="birth_year" type="number" /></label>
+  </div>
 
-        if (!proceed) {
-          return; // user cancelled
-        }
-      }
+  <!-- ========================= -->
+  <!-- PARENTS -->
+  <!-- ========================= -->
+  <div class="section">
+    <label><input type="checkbox" id="addParentToggle" /> Add parent(s)</label>
+    <div id="parentBox" class="box" hidden>
+      <div id="parentsContainer"></div>
+      <button type="button" id="addParentRow">➕ Add another parent</button>
+    </div>
+  </div>
 
-      // 1) Create person
-      const ins = await supabase
-        .from("people")
-        .insert({ first_name, birth_year })
-        .select("id, first_name");
+  <!-- ========================= -->
+  <!-- SPOUSES -->
+  <!-- ========================= -->
+  <div class="section">
+    <label><input type="checkbox" id="addSpouseToggle" /> Add spouse(s)</label>
+    <div id="spouseBox" class="box" hidden>
+      <div id="spousesContainer"></div>
+      <button type="button" id="addSpouseRow">➕ Add another spouse</button>
+    </div>
+  </div>
 
-      if (ins.error) {
-        alert("Insert failed: " + ins.error.message);
-        return;
-      }
-      const newPerson = ins.data[0];
+  <!-- ========================= -->
+  <!-- CHILDREN -->
+  <!-- ========================= -->
+  <div class="section">
+    <label><input type="checkbox" id="addChildToggle" /> Add child(ren)</label>
+    <div id="childBox" class="box" hidden>
+      <div id="childrenContainer"></div>
+      <button type="button" id="addChildRow">➕ Add another child</button>
+    </div>
+  </div>
 
-      // 2) Create relationship(s) if context was provided
-      let relError = null;
+  <button type="submit">Create Person & Save</button>
+</form>
 
-      if (parentId) {
-        // newPerson is the CHILD, parentId is the PARENT
-        const rel = await supabase
-          .from("relationships")
-          .insert({ person_id: newPerson.id, related_person_id: parentId, relationship_type: "parent" });
-        relError = rel.error;
-      }
+</div>
+</div>
 
-      if (childId) {
-        // newPerson is the PARENT, childId is the CHILD
-        const rel = await supabase
-          .from("relationships")
-          .insert({ person_id: childId, related_person_id: newPerson.id, relationship_type: "parent" });
-        relError = relError || rel.error;
-      }
+<p><a href="index.html">⬅ Back</a></p>
 
-      if (spouseOf) {
-        // Add spouse both directions for simpler queries
-        const rel1 = await supabase
-          .from("relationships")
-          .insert({ person_id: newPerson.id, related_person_id: spouseOf, relationship_type: "spouse" });
-        const rel2 = await supabase
-          .from("relationships")
-          .insert({ person_id: spouseOf, related_person_id: newPerson.id, relationship_type: "spouse" });
-        relError = rel1.error || rel2.error || relError;
-      }
+<script type="module">
+import { supabase } from "./js/supabase.js";
 
-      if (relError) {
-        alert("Saved person, but relationship linking failed: " + relError.message);
-      } else {
-        alert("Saved!");
-      }
+/* =========================
+   TOGGLES
+========================= */
+const parentToggle = document.getElementById("addParentToggle");
+const spouseToggle = document.getElementById("addSpouseToggle");
+const childToggle  = document.getElementById("addChildToggle");
 
-      // 3) Go back to the relevant person page
-      if (backId) {
-        location.href = `person.html?id=${backId}`;
-      } else {
-        location.href = `person.html?id=${newPerson.id}`;
-      }
+const parentBox = document.getElementById("parentBox");
+const spouseBox = document.getElementById("spouseBox");
+const childBox  = document.getElementById("childBox");
+
+parentToggle.onchange = () => toggleBox(parentToggle, parentBox, parentsContainer, createParentRow);
+spouseToggle.onchange = () => toggleBox(spouseToggle, spouseBox, spousesContainer, createSpouseRow);
+childToggle.onchange  = () => toggleBox(childToggle, childBox, childrenContainer, createChildRow);
+
+/* =========================
+   CONTAINERS
+========================= */
+const parentsContainer  = document.getElementById("parentsContainer");
+const spousesContainer  = document.getElementById("spousesContainer");
+const childrenContainer = document.getElementById("childrenContainer");
+
+document.getElementById("addParentRow").onclick = () => addRow(parentsContainer, createParentRow);
+document.getElementById("addSpouseRow").onclick = () => addRow(spousesContainer, createSpouseRow);
+document.getElementById("addChildRow").onclick  = () => addRow(childrenContainer, createChildRow);
+
+/* =========================
+   GENERIC HELPERS
+========================= */
+function toggleBox(toggle, box, container, factory) {
+  box.hidden = !toggle.checked;
+  if (toggle.checked && container.children.length === 0) {
+    addRow(container, factory);
+  }
+}
+
+function addRow(container, factory) {
+  const row = factory(container);
+  container.appendChild(row);
+  setupSearch(row);
+  setupRemoveRow(container, row);
+}
+
+function setupRemoveRow(container, row) {
+  row.querySelector(".removeRow").onclick = () => {
+    if (container.children.length <= 1) {
+      alert("At least one row must remain.");
+      return;
+    }
+    row.remove();
+  };
+}
+
+/* =========================
+   ROW FACTORIES
+========================= */
+function baseRow(label) {
+  const row = document.createElement("div");
+  row.className = "rel-row";
+  row.innerHTML = `
+    <p>
+      <strong>${label}</strong>
+      <button type="button" class="removeRow small">🗑 Remove</button>
+    </p>
+    <input type="search" class="search" placeholder="Search existing…" />
+    <ul class="results"></ul>
+    <p><em>Or create new</em></p>
+    <input class="newName" placeholder="Full name" />
+    <input class="newBirth" type="number" placeholder="Birth year" />
+  `;
+  return row;
+}
+
+function createParentRow() { return baseRow("Parent"); }
+function createSpouseRow() { return baseRow("Spouse"); }
+function createChildRow()  { return baseRow("Child"); }
+
+/* =========================
+   SEARCH SETUP
+========================= */
+function setupSearch(row) {
+  const input = row.querySelector(".search");
+  const results = row.querySelector(".results");
+  let selectedId = null;
+
+  input.addEventListener("input", async () => {
+    results.innerHTML = "";
+    selectedId = null;
+
+    const q = input.value.trim();
+    if (q.length < 2) return;
+
+    const { data } = await supabase
+      .from("people")
+      .select("id, first_name, birth_year")
+      .ilike("first_name", `%${q}%`)
+      .order("first_name")
+      .limit(5);
+
+    data?.forEach(p => {
+      const li = document.createElement("li");
+      li.textContent = `${p.first_name}${p.birth_year ? " ("+p.birth_year+")" : ""}`;
+      li.onclick = () => {
+        selectedId = p.id;
+        input.value = p.first_name;
+        results.innerHTML = "";
+      };
+      results.appendChild(li);
     });
-  </script>
+  });
+
+  row._getSelectedId = () => selectedId;
+}
+
+/* =========================
+   DUPLICATE CHECK
+========================= */
+async function relationshipExists(a, b, type) {
+  const { data } = await supabase
+    .from("relationships")
+    .select("id")
+    .eq("person_id", a)
+    .eq("related_person_id", b)
+    .eq("relationship_type", type)
+    .limit(1);
+  return data.length > 0;
+}
+
+/* =========================
+   SUBMIT
+========================= */
+document.getElementById("addPersonForm").onsubmit = async (e) => {
+  e.preventDefault();
+
+  const fd = new FormData(e.target);
+  const { data: person } = await supabase
+    .from("people")
+    .insert({
+      first_name: fd.get("first_name"),
+      birth_year: fd.get("birth_year") || null
+    })
+    .select("id")
+    .single();
+
+  const personId = person.id;
+
+  await handleParents(personId);
+  await handleSpouses(personId);
+  await handleChildren(personId);
+
+  location.href = `person.html?id=${personId}`;
+};
+
+/* =========================
+   RELATIONSHIP HANDLERS
+========================= */
+async function resolveRowPerson(row) {
+  let id = row._getSelectedId();
+  if (id) return id;
+
+  const name = row.querySelector(".newName").value.trim();
+  if (!name) return null;
+
+  const birth = row.querySelector(".newBirth").value || null;
+  const { data } = await supabase
+    .from("people")
+    .insert({ first_name: name, birth_year: birth })
+    .select("id")
+    .single();
+  return data.id;
+}
+
+async function handleParents(childId) {
+  if (!parentToggle.checked) return;
+  for (const row of parentsContainer.children) {
+    const parentId = await resolveRowPerson(row);
+    if (!parentId) continue;
+    if (!(await relationshipExists(childId, parentId, "parent"))) {
+      await supabase.from("relationships").insert({
+        person_id: childId,
+        related_person_id: parentId,
+        relationship_type: "parent"
+      });
+    }
+  }
+}
+
+async function handleSpouses(a) {
+  if (!spouseToggle.checked) return;
+  for (const row of spousesContainer.children) {
+    const b = await resolveRowPerson(row);
+    if (!b) continue;
+
+    const ab = await relationshipExists(a, b, "spouse");
+    const ba = await relationshipExists(b, a, "spouse");
+
+    const inserts = [];
+    if (!ab) inserts.push({ person_id: a, related_person_id: b, relationship_type: "spouse" });
+    if (!ba) inserts.push({ person_id: b, related_person_id: a, relationship_type: "spouse" });
+
+    if (inserts.length) {
+      await supabase.from("relationships").insert(inserts);
+    }
+  }
+}
+
+async function handleChildren(parentId) {
+  if (!childToggle.checked) return;
+  for (const row of childrenContainer.children) {
+    const childId = await resolveRowPerson(row);
+    if (!childId) continue;
+    if (!(await relationshipExists(childId, parentId, "parent"))) {
+      await supabase.from("relationships").insert({
+        person_id: childId,
+        related_person_id: parentId,
+        relationship_type: "parent"
+      });
+    }
+  }
+}
+</script>
+
 </body>
 </html>
