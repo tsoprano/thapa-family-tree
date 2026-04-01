@@ -5,11 +5,27 @@
   <title>Ranasur Family Tree</title>
 </head>
 <body>
+  <nav id="authNav" style="margin-bottom:1rem;"></nav>
+
+<div class="page">
+  <div class="card">
+    <!-- page-specific content here -->
+  </div>
+</div>
+
   <p>Loading family tree…</p>
 
-  <script type="module">
-    import { ROOT_PERSON_ID } from "./js/config.js";
+<script type="module">
+  import { renderAuthNav } from "/js/auth-nav.js";
+  import { ROOT_PERSON_ID } from "./js/config.js";
+
+  renderAuthNav();
+
+  // Redirect after a tick so auth state is established
+  setTimeout(() => {
     window.location.replace(`person.html?id=${ROOT_PERSON_ID}`);
-  </script>
+  }, 0);
+</script>
+
 </body>
 </html>
