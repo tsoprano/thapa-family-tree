@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Login</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .login-box {
+      max-width: 400px;
+      margin: 4rem auto;
+      padding: 2rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    label {
+      display: block;
+      margin-bottom: 1rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+    }
+    .error {
+      color: red;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<nav style="margin-bottom:1rem;">
+  <a href="index.html">🏠 Home</a>
+</nav>
+
+<div class="login-box">
+  <h2>Login</h2>
+
+  <form id="loginForm">
+    <label>
+      Email
+      <input type="email" name="email" required />
+    </label>
+
+    <label>
+      Password
+      <input type="password" name="password" required />
+    </label>
+
+    <button type="submit">Login</button>
+  </form>
+
+  <div id="error" class="error"></div>
+</div>
+
+<script type="module" src="/js/login.js"></script>
+</body>
+</html>
